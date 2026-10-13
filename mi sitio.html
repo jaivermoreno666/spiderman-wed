@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spider-Man | Escenas Interactivas</title>
+    <!-- Enlace a los estilos -->
+    <link rel="stylesheet" href="css/estilos.css">
+</head>
+
+<body>
+    
+<script>
+(function () {
+    function iniciarIntro() {
+        const intro = document.getElementById("intro");
+        const video = document.getElementById("videoIntro");
+        const mascara = document.querySelector(".spidey-drop-wrapper");
+
+        if (!intro) return;
+
+        // Iniciar el video si es posible
+        if (video) {
+            video.muted = true;
+            video.play().catch(function () {
+                console.log("El video no pudo reproducirse.");
+            });
+        }
+
+        // Continuar la página después de 5 segundos
+
+window.setTimeout(function () {
+    intro.style.display = "none";
+
+    if (mascara) {
+        mascara.classList.add("mostrar");
+
+        // Activar la telaraña cuando aparezca la máscara
+        if (typeof window.mostrarTelarana === "function") {
+            window.mostrarTelarana();
+        }
+    }
+}, 4500);
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", iniciarIntro);
+    } else {
+        iniciarIntro();
+    }
+
+function mostrarTelarana() {
+    const mascara = document.querySelector(".spider-mask");
+    const telarana = document.getElementById("telaranaArrastre");
+
+    if (!mascara || !telarana) {
+        console.error("No se encontró la máscara o la telaraña");
+        return;
+    }
+
+    telarana.style.opacity = "1";
+
+    function actualizar() {
+        const rect = mascara.getBoundingClientRect();
+
+        telarana.style.left = (rect.left + rect.width / 2) + "px";
+        telarana.style.top = "0px";
+        telarana.style.height = Math.max(0, rect.top) + "px";
+
+        if (telarana.style.opacity === "1") {
+            requestAnimationFrame(actualizar);
+        }
+    }
+
+    actualizar();
+}
+
+window.mostrarTelarana = mostrarTelarana;
+})();
+
+</script>
+
+    <div id="intro">
+    <video id="videoIntro" autoplay muted playsinline>
+        <source src="video/intro.mp4" type="video/mp4">
+    </video>
+</div>
+
+    <!-- CONTENEDOR HERO CON VIDEO DE FONDO -->
+    <section class="hero-container">
+        <!-- El Video de Fondo -->
+        <video autoplay muted loop playsinline id="bg-video">
+            <source src="video/spider.mp4" type="video/mp4">
+            Tu navegador no soporta videos HTML5.
+        </video>
+
+
+        <!-- Capa Oscura -->
+        <div class="video-overlay"></div>
+
+        <!-- Contenido Principal -->
+        <div class="hero-content">
+
+    <!-- Telaraña colgante -->
+    <div id="telaranaArrastre" aria-hidden="true"></div>
+
+    <!-- Tu máscara actual -->
+    <div class="spidey-drop-wrapper">
+                <div class="spider-mask">
+                    <div class="mask-web-lines"></div>
+                    <div class="eye left-eye"></div>
+                    <div class="eye right-eye"></div>
+                </div>
+                <div class="title-container">
+                    <h1 class="main-title">SPIDER-MAN</h1>
+                    <p class="main-subtitle">"Spiderman para melina"</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+<script>
+(() => {
+    const mascara = document.querySelector(".spider-mask");
+    const wrapper = document.querySelector(".spidey-drop-wrapper");
+    const telarana = document.getElementById("telaranaArrastre");
+
+    if (!mascara || !wrapper || !telarana) {
+        console.error("No se encontró la máscara o la telaraña.");
+        return;
+    }
+
+    const DISTANCIA_MINIMA = 130;
+    const LIMITE_DE_ARRASTRE = 300;
+
+    let arrastrando = false;
+    let inicioY = 0;
+    let distancia = 0;
+    let siguiendoEntrada = false;
+
+    // Mantiene la telaraña unida a la parte superior de la máscara.
+   
+
+
+function actualizarTelarana() {
+    const rect = mascara.getBoundingClientRect();
+
+    // La telaraña comienza arriba de la pantalla
+    telarana.style.position = "fixed";
+    telarana.style.top = "0px";
+
+    // Se centra con la máscara
+    telarana.style.left =
+        (rect.left + rect.width / 2) + "px";
+
+    // Termina justo donde comienza la máscara
+    telarana.style.height =
+        Math.max(0, rect.top) + "px";
+
+    // Línea delgada y detrás de la máscara
+    telarana.style.transform = "translateX(-50%)";
+    telarana.style.zIndex = "1";
+    telarana.style.pointerEvents = "none";
+}
+
+    // Detecta cuándo aparece la máscara después de la intro.
+    const observador = new MutationObserver(() => {
+        if (wrapper.classList.contains("mostrar")) {
+            iniciarSeguimiento();
+        }
+    });
+
+    observador.observe(wrapper, {
+        attributes: true,
+        attributeFilter: ["class"]
+    });
+
+    // Deja de seguir la animación cuando termina la caída.
+    wrapper.addEventListener("animationend", (evento) => {
+        if (evento.target !== wrapper) return;
+
+        siguiendoEntrada = false;
+        actualizarTelarana();
+    });
+
+    if (wrapper.classList.contains("mostrar")) {
+        iniciarSeguimiento();
+    }
+
+    // Empiezas a agarrar la máscara.
+    mascara.addEventListener("pointerdown", (evento) => {
+        if (!wrapper.classList.contains("mostrar")) return;
+
+        if (
+            evento.pointerType === "mouse" &&
+            evento.button !== 0
+        ) {
+            return;
+        }
+
+        arrastrando = true;
+        inicioY = evento.clientY;
+        distancia = 0;
+
+        mascara.classList.remove("regresando");
+        mascara.classList.add("arrastrando");
+
+        mascara.setPointerCapture(evento.pointerId);
+
+        evento.preventDefault();
+    });
+
+    // Arrastras la máscara y la telaraña se estira.
+    mascara.addEventListener("pointermove", (evento) => {
+        if (!arrastrando) return;
+
+        distancia = Math.max(
+            0,
+            Math.min(
+                LIMITE_DE_ARRASTRE,
+                evento.clientY - inicioY
+            )
+        );
+
+        
+
+
+mascara.style.setProperty(
+    "--arrastre-y",
+    distancia + "px"
+);
+
+// La telaraña aparece y sigue la caída
+telarana.style.opacity = "1";
+actualizarTelarana();
+
+telarana.style.height = Math.max(0, distancia) + "px";
+telarana.style.opacity = "1";
+
+        actualizarTelarana();
+    });
+
+    // Devuelve la máscara a su sitio si no se activa.
+    function regresarMascara() {
+        arrastrando = false;
+
+        const rect = mascara.getBoundingClientRect();
+        const alturaOriginal = Math.max(0, rect.top - distancia);
+
+        mascara.classList.remove("arrastrando");
+        mascara.classList.add("regresando");
+
+        mascara.style.setProperty("--arrastre-y", "0px");
+        telarana.style.height = alturaOriginal + "px";
+
+        distancia = 0;
+
+        window.setTimeout(() => {
+            mascara.classList.remove("regresando");
+            actualizarTelarana();
+        }, 380);
+    }
+
+    DISTANCIA_MINIMA;
+
+    // Al soltar la máscara
+    mascara.addEventListener("pointerup", () => {
+        if (!arrastrando) return;
+
+        const activar = distancia >= DISTANCIA_MINIMA;
+
+        arrastrando = false;
+        mascara.classList.remove("arrastrando");
+
+        
+if (activar) {
+    abrirAlbum();
+}
+
+        regresarMascara();
+    });
+
+    mascara.addEventListener("pointercancel", () => {
+        if (arrastrando) {
+            regresarMascara();
+        }
+    });
+
+   
+function abrirAlbum() {
+    const album = document.getElementById("albumHolografico");
+
+    if (!album) {
+        alert("No se encuentra el álbum en el HTML");
+        return;
+    }
+
+    album.classList.add("album-visible");
+    album.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+} 
+function abrirAlbum() {
+    const album = document.getElementById("albumHolografico");
+
+    if (!album) {
+        alert("No se encuentra el álbum en el HTML");
+        return;
+    }
+
+    album.classList.add("album-visible");
+    album.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+}
+
+/* ==================================
+   ARRASTRAR LAS FOTOS HOLOGRÁFICAS
+   ================================== */
+
+(() => {
+    const album = document.getElementById("albumFlotante");
+
+    if (!album || album.dataset.arrastreActivo === "si") return;
+
+    album.dataset.arrastreActivo = "si";
+
+    let fotoActiva = null;
+    let inicioX = 0;
+    let inicioY = 0;
+    let posicionX = 0;
+    let posicionY = 0;
+    let seMovio = false;
+
+    album.querySelectorAll(".foto-card").forEach((foto) => {
+        foto.addEventListener("pointerdown", (evento) => {
+            if (evento.button !== 0 && evento.pointerType === "mouse") return;
+
+            fotoActiva = foto;
+            inicioX = evento.clientX;
+            inicioY = evento.clientY;
+            posicionX = foto.offsetLeft;
+            posicionY = foto.offsetTop;
+            seMovio = false;
+
+            foto.classList.add("arrastrando");
+            foto.style.animation = "none";
+            foto.style.zIndex = "30";
+
+            foto.setPointerCapture(evento.pointerId);
+        });
+
+        foto.addEventListener("pointermove", (evento) => {
+            if (fotoActiva !== foto) return;
+
+            const diferenciaX = evento.clientX - inicioX;
+            const diferenciaY = evento.clientY - inicioY;
+
+            if (Math.abs(diferenciaX) > 4 || Math.abs(diferenciaY) > 4) {
+                seMovio = true;
+            }
+
+            if (!seMovio) return;
+
+            const maxX = album.clientWidth - foto.offsetWidth;
+            const maxY = album.clientHeight - foto.offsetHeight;
+
+            const nuevaX = Math.max(0, Math.min(maxX, posicionX + diferenciaX));
+            const nuevaY = Math.max(0, Math.min(maxY, posicionY + diferenciaY));
+
+            foto.style.left = nuevaX + "px";
+            foto.style.top = nuevaY + "px";
+        });
+
+        function soltarFoto() {
+            if (fotoActiva !== foto) return;
+
+            foto.classList.remove("arrastrando");
+            foto.style.zIndex = "10";
+
+            if (seMovio) {
+                foto.dataset.seArrastro = "si";
+            }
+
+            fotoActiva = null;
+        }
+
+        foto.addEventListener("pointerup", soltarFoto);
+        foto.addEventListener("pointercancel", soltarFoto);
+
+        /* Si arrastraste la foto, no abrir el visor por accidente */
+        foto.addEventListener("click", (evento) => {
+            if (foto.dataset.seArrastro === "si") {
+                evento.preventDefault();
+                evento.stopImmediatePropagation();
+                delete foto.dataset.seArrastro;
+            }
+        }, true);
+    });
+})();
+})();
+</script>
+div>
+
+
+<!<!-- GALERÍA FUTURISTA SPIDER-MAN -->
+
+<section id="albumHolografico" class="album-overlay" aria-hidden="true">
+    <div class="album-panel">
+
+```
+    <button id="cerrarAlbum" class="album-close" aria-label="Cerrar galería">
+        ✕
+    </button>
+
+    <div class="galeria-futurista" id="galeriaFuturista">
+
+        <div class="galeria-cabecera">
+            <span class="galeria-etiqueta">SPIDER SYSTEM // MEDIA CENTER</span>
+            <h2>PAGINA WED <span>DE JAIVER</span></h2>
+            <p>Momentos sad😭</p>
+        </div>
+
+       
+
+        <input
+            type="file"
+            id="selectorMultimedia"
+            accept="image/*,video/mp4"
+            multiple
+        >
+
+<div class="galeria-grid" id="galeriaMultimedia">
+
+    <!-- TARJETA DEL VIDEO -->
+    
+<button
+    type="button"
+    class="tarjeta-video"
+    id="abrirVideo"
+    aria-label="Reproducir video"
+>
+    <img
+    class="miniatura-video"
+    src="img/miniatura-spiderman.png"
+    alt="Spider-Man"
+>
+
+    <span class="icono-reproducir">▶</span>
+</button>
+</div>
+
+<!-- VENTANA GRANDE DEL VIDEO -->
+<div class="ventana-video" id="ventanaVideo">
+    <button
+        type="button"
+        id="cerrarVideo"
+        class="cerrar-video"
+        aria-label="Cerrar video"
+    >✕</button>
+
+    
+<video id="videoGrande" controls playsinline>
+    <source src="video/spidersad.mp4" type="video/mp4">
+    Tu navegador no puede reproducir este video.
+</video>
+
+
+</div>
+
+    <p class="album-footer">LA MUERTE DE GWEN STACY</p>
+</div>
+```
+
+</section>
+
+<!-- VISOR PARA AMPLIAR FOTOGRAFÍAS -->
+
+<div class="visor-multimedia" id="visorMultimedia">
+    <button
+        type="button"
+        class="visor-multimedia-cerrar"
+        id="cerrarVisorMultimedia"
+        aria-label="Cerrar fotografía"
+    >✕</button>
+
+```
+<img
+    id="imagenMultimediaAmpliada"
+    src=""
+    alt="Fotografía ampliada"
+>
+```
+
+</div>
+
+<!-- Visor para ampliar una foto -->
+<div id="visorFoto" class="visor-foto" aria-hidden="true">
+    <button id="cerrarVisor" class="visor-close" aria-label="Cerrar foto">✕</button>
+    <img id="fotoAmpliada" src="" alt="Foto ampliada">
+    <p id="textoFoto"></p>
+</div>
+
+<script>
+(() => {
+    const selector = document.getElementById("selectorMultimedia");
+    const galeria = document.getElementById("galeriaMultimedia");
+    const contador = document.getElementById("contadorMultimedia");
+    const mensaje = document.getElementById("mensajeVacio");
+    const visor = document.getElementById("visorMultimedia");
+    const imagenGrande = document.getElementById("imagenMultimediaAmpliada");
+    const cerrarVisor = document.getElementById("cerrarVisorMultimedia");
+
+    if (!selector || !galeria || !contador || !visor || !cerrarVisor) {
+        console.error("Faltan elementos de la galería multimedia.");
+        return;
+    }
+
+    let cantidad = 0;
+
+    function actualizarContador() {
+        contador.textContent = "ARCHIVOS: " + cantidad;
+    }
+
+    function cerrarFoto() {
+        visor.classList.remove("abierto");
+        imagenGrande.src = "";
+    }
+
+    function agregarArchivo(archivo) {
+        const esFoto = archivo.type.startsWith("image/");
+        const esVideo = archivo.type === "video/mp4";
+
+        if (!esFoto && !esVideo) {
+            alert("Selecciona una imagen o un video MP4.");
+            return;
+        }
+
+        const url = URL.createObjectURL(archivo);
+        const tarjeta = document.createElement("article");
+        tarjeta.className = "media-tarjeta";
+
+        const eliminar = document.createElement("button");
+        eliminar.type = "button";
+        eliminar.className = "media-eliminar";
+        eliminar.textContent = "×";
+        eliminar.setAttribute("aria-label", "Eliminar archivo");
+
+        const visual = document.createElement(esFoto ? "img" : "video");
+        visual.className = "media-visual";
+        visual.src = url;
+
+        if (esFoto) {
+            visual.alt = archivo.name;
+            visual.addEventListener("click", () => {
+                imagenGrande.src = url;
+                visor.classList.add("abierto");
+            });
+        } else {
+            visual.controls = true;
+            visual.preload = "metadata";
+            visual.playsInline = true;
+        }
+
+        const nombre = document.createElement("div");
+        nombre.className = "media-nombre";
+        nombre.textContent = archivo.name;
+
+        const tipo = document.createElement("div");
+        tipo.className = "media-tipo";
+        tipo.textContent = esFoto ? "▣ FOTOGRAFÍA" : "▶ VIDEO MP4";
+
+        eliminar.addEventListener("click", () => {
+            if (visual.tagName === "VIDEO") visual.pause();
+
+            if (imagenGrande.src === url) cerrarFoto();
+
+            URL.revokeObjectURL(url);
+            tarjeta.remove();
+            cantidad--;
+            actualizarContador();
+
+            if (cantidad === 0) {
+                galeria.appendChild(mensaje);
+            }
+        });
+
+        tarjeta.append(eliminar, visual, nombre, tipo);
+
+        if (cantidad === 0 && mensaje) {
+            mensaje.remove();
+        }
+
+        galeria.appendChild(tarjeta);
+        cantidad++;
+        actualizarContador();
+    }
+
+    selector.addEventListener("change", () => {
+        Array.from(selector.files).forEach(agregarArchivo);
+        selector.value = "";
+    });
+
+    cerrarVisor.addEventListener("click", cerrarFoto);
+
+    visor.addEventListener("click", evento => {
+        if (evento.target === visor) cerrarFoto();
+    });
+
+    document.addEventListener("keydown", evento => {
+        if (evento.key === "Escape") cerrarFoto();
+    });
+
+    actualizarContador();
+})();
+</script>
+</body>
+</html>
